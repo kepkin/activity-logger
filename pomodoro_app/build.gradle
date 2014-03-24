@@ -1,0 +1,24 @@
+apply plugin: 'scala'
+apply plugin: 'eclipse'
+apply plugin: 'application'
+
+mainClassName = "pomodoro.PomodorApp"
+sourceCompatibility = 1.7
+version = '1.0'
+// jar {
+//     manifest {
+//         attributes 'Implementation-Title': 'Gradle Quickstart', 'Implementation-Version': version
+//     }
+// }
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.scala-lang:scala-library:2.10.1'
+    compile 'org.scala-lang:scala-swing:2.10.1'
+    compile 'com.netflix.rxjava:rxjava-scala:0.17.1'
+    compile 'com.netflix.rxjava:rxjava-core:0.17.1'
+    compile 'com.netflix.rxjava:rxjava-swing:0.17.1'
+}
