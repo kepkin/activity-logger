@@ -16,8 +16,9 @@ import math.abs
 import javax.swing.Action
 import java.awt.event.ActionListener
 import rx.subscriptions.CompositeSubscription
-import rx.lang.scala.Observable
+import rx.lang.scala.{Observable, Observer}
 import rx.lang.scala.Subscription
+import rx.Observable
 import scala.concurrent.duration._
 import com.sun.awt.AWTUtilities
 
@@ -97,23 +98,35 @@ object PomodoroApp extends SimpleSwingApplication with ConcreteSwingApi {
 
 class PomTimeLabel extends Frame {
   private val form = new java.text.SimpleDateFormat("HH:mm:ss")
-//  def current = form.format(java.util.Calendar.getInstance().getTime)
 
-  peer.setUndecorated(true)
-  val text = new Label("0 seconds.fdsfsdfsdffds")
-  contents = text
-  size = (100, 50)
-  AWTUtilities.setWindowOpacity(peer, 0.8.toFloat)
-    
-  val eventScheduler = SwingEventThreadScheduler()
+  ConfigureGui()
   
+  val text = new Label("0 seconds.fdsfsdfsdffds")
+  val eventScheduler = SwingEventThreadScheduler()
+  val guiWindow = this
+
   def start(x: Duration) {
     this.visible = true
-	  val ticks = Observable.interval(1 second)
-	  ticks.observeOn(eventScheduler).take(x.toSeconds.toInt).subscribe(last => {
-	    val a = x - (last seconds)
-	    text.text = a.toString()
-	  })
+    val ticks = Observable.interval(1 second)
+    ticks.observeOn(eventScheduler).take(x.toSeconds.toInt).subscribe(CreateTimeObserver(x))
+  }
+
+  def CreateTimeObserver(x: Duration) = new Observer[Long] {
+    override def onNext(last: Long) {
+      val a = x - (last seconds)
+      text.text = a.toString()
+    }
+
+    override def onCompleted() {
+      guiWindow.visible = false
+    }
+  }
+
+  def ConfigureGui() {
+    peer.setUndecorated(true)
+    contents = text
+    size = (100, 50)
+    AWTUtilities.setWindowOpacity(peer, 0.8.toFloat)
   }
 } 
 
@@ -137,3 +150,21 @@ trait ConcreteSwingApi extends SwingApi {
   type TextField = scala.swing.TextField
   type Button = scala.swing.Button
 }
+
+class PomodoroObject(val startTime: Long, val duration: Duration)
+
+trait PomodoroTimer {
+  def StartPomodoro() : Long 
+  def StartShortBreak() : Long
+}
+
+
+//class RxPomodoroTimer extends rx.Observable[Long]() with PomodoroTimer {
+//  
+//  val observers : List[Observer[Long]] = Nil
+//  
+// 
+// def StartPomodoro(): Long = ???
+// def StartShortBreak(): Long = ???
+//  
+//}
