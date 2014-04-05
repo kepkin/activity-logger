@@ -21,4 +21,5 @@ dependencies {
     compile 'com.netflix.rxjava:rxjava-scala:0.17.1'
     compile 'com.netflix.rxjava:rxjava-core:0.17.1'
     compile 'com.netflix.rxjava:rxjava-swing:0.17.1'
+    compile 'com.github.nscala-time:nscala-time_2.10:0.8.0'
 }

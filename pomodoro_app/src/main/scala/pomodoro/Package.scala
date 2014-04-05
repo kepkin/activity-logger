@@ -16,24 +16,28 @@ import math.abs
 import javax.swing.Action
 import java.awt.event.ActionListener
 import rx.subscriptions.CompositeSubscription
-import rx.lang.scala.{Observable, Observer}
+import rx.lang.scala.{ Observable, Observer, Subscriber }
 import rx.lang.scala.Subscription
-import rx.Observable
-import scala.concurrent.duration._
 import com.sun.awt.AWTUtilities
+import com.github.nscala_time.time.Imports._
+import JodaDurationImplicits._
 
-object PomodoroApp extends SimpleSwingApplication with ConcreteSwingApi {
+trait UsesRxSwing {
+  implicit val eventScheduler = SwingEventThreadScheduler()
+}
 
-  {
-    try {
-      UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
-    } catch {
-      case t: Throwable =>
-    }
-  }
-  
+object PomodoroApp extends SimpleSwingApplication with ConcreteSwingApi with UsesRxSwing {
+
   val timerFrame = new PomTimeLabel
+  val timer = new RxPomodoroTimer
+  timer.GetObservable().subscribe( _ => timerFrame.start(13 seconds))
   
+  //GUI stuff
+  try {
+    UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
+  } catch {
+    case t: Throwable =>
+  }
   def top = new MainFrame {
 
     /* gui setup */
@@ -76,7 +80,7 @@ object PomodoroApp extends SimpleSwingApplication with ConcreteSwingApi {
       contents += status
     }
 
-    val eventScheduler = SwingEventThreadScheduler()
+    
 
     /**
      * Observables
@@ -86,35 +90,30 @@ object PomodoroApp extends SimpleSwingApplication with ConcreteSwingApi {
      *  `myListView.selection.items` returns a list of selected items from `myListView`
      *  `myEditorPane.text = "act"` : sets the content of `myEditorPane` to "act"
      */
-
-    def onNext(x: Button) {
-      timerFrame.start(13 seconds)
-    }
     
-    button.clicks.observeOn(eventScheduler).subscribe(onNext(_))
+    button.clicks.subscribe(_ => timer.StartPomodoro())
   }
-
 }
 
-class PomTimeLabel extends Frame {
+class PomTimeLabel extends Frame with UsesRxSwing {
   private val form = new java.text.SimpleDateFormat("HH:mm:ss")
-
-  ConfigureGui()
   
-  val text = new Label("0 seconds.fdsfsdfsdffds")
-  val eventScheduler = SwingEventThreadScheduler()
+  val text = new Label("00:00") //FIXME: configure Label width
   val guiWindow = this
+  
+  ConfigureGui()
 
   def start(x: Duration) {
     this.visible = true
     val ticks = Observable.interval(1 second)
-    ticks.observeOn(eventScheduler).take(x.toSeconds.toInt).subscribe(CreateTimeObserver(x))
+    ticks.take(x.toSeconds.toInt).subscribe(CreateTimeObserver(x))
   }
 
   def CreateTimeObserver(x: Duration) = new Observer[Long] {
     override def onNext(last: Long) {
       val a = x - (last seconds)
-      text.text = a.toString()
+      LocalTime.fromMillisOfDay(x.to)
+      text.text = a.toString() //FIXME: print in time format 00:00
     }
 
     override def onCompleted() {
@@ -158,13 +157,36 @@ trait PomodoroTimer {
   def StartShortBreak() : Long
 }
 
-
-//class RxPomodoroTimer extends rx.Observable[Long]() with PomodoroTimer {
-//  
-//  val observers : List[Observer[Long]] = Nil
-//  
-// 
-// def StartPomodoro(): Long = ???
-// def StartShortBreak(): Long = ???
-//  
+//class Pom {
+//  val duration: Duration
+//  val start: Time
 //}
+//
+//trait Repository {
+//  def Store
+//}
+
+
+class RxPomodoroTimer extends PomodoroTimer {
+
+  private var id = 0
+  private var observers: List[Subscriber[Long]] = Nil
+
+  val self = this
+  
+  private def AddObserver(sub: Subscriber[Long]) {
+    observers = sub :: observers
+  }
+
+  def StartPomodoro(): Long = {
+    id += 1 //FIXME: use UUID
+    observers.foreach(_.onNext(id))
+    id
+  }
+
+  def StartShortBreak(): Long = ???
+
+  def GetObservable(): Observable[Long] = {
+    Observable(self.AddObserver(_))
+  }
+}
